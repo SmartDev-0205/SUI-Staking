@@ -1,16 +1,15 @@
-import { useEffect, useState } from "react"
-import { ConnectButton, useWalletKit } from "@mysten/wallet-kit"
-
-export const Header = () => {
+import React from "react";
+import { useEffect, useState } from "react";
+import { ConnectButton, useWalletKit } from "@mysten/wallet-kit";
+export const Header = (props) => {
   const { currentAccount } = useWalletKit();
-
-  const [address, setAddress] = useState('')
+  const [address, setAddress] = useState("");
   useEffect(() => {
     if (currentAccount?.address) {
       let tempAddr = currentAccount?.address;
-      setAddress(tempAddr.slice(0, 4) + '...' + tempAddr.slice(-4))
+      setAddress(tempAddr.slice(0, 4) + "..." + tempAddr.slice(-4));
     }
-  }, [currentAccount])
+  }, [currentAccount]);
 
   return (
     <div className="fixed top-0 left-0 w-full min-h-60 md:min-h-80 lg:h-90 px-[8vw] flex flex-row-reverse mm:flex-row gap-50 items-center justify-between mm:justify-end bg-bg z-10">
@@ -23,10 +22,18 @@ export const Header = () => {
       </div>
 
       <div className="hidden mm:flex flex-row gap-10 md:gap-20 lg:gap-30">
-        <span className="text-12 md:text-15 font-semibold">Airdrop</span>
-        <span className="text-12 md:text-15 font-semibold">Stake</span>
-        <span className="text-12 md:text-15 font-semibold">My Account</span>
-        <span className="text-12 md:text-15 font-semibold">Docs</span>
+        <span className="text-12 md:text-15 font-semibold cursor-pointer">
+          Airdrop
+        </span>
+        <span className="text-12 md:text-15 font-semibold cursor-pointer">
+          Stake
+        </span>
+        <span className="text-12 md:text-15 font-semibold cursor-pointer">
+          My Account
+        </span>
+        <span className="text-12 md:text-15 font-semibold cursor-pointer">
+          Docs
+        </span>
       </div>
 
       <div className="socials-link hidden md:flex flex-row gap-10 md:gap-15 lg:gap-20">
@@ -42,17 +49,38 @@ export const Header = () => {
           <path d="M0 0.5V15.5H15V0.5H0ZM12.4615 4.05395L11.6569 4.82533C11.6229 4.85128 11.5966 4.88599 11.5809 4.92575C11.5651 4.9655 11.5605 5.00879 11.5674 5.05099V10.7181C11.553 10.8039 11.5875 10.8911 11.6569 10.9438L12.4424 11.7151V11.8845H8.49112V11.7151L9.30493 10.925C9.38487 10.8451 9.38487 10.8214 9.38487 10.6993V6.11875L7.12204 11.8658H6.81612L4.18158 6.11875V9.97072C4.15954 10.1326 4.21349 10.2957 4.3273 10.4128L5.38586 11.6967V11.8661H2.38454V11.6967L3.44309 10.4128C3.55625 10.2954 3.60691 10.1313 3.57961 9.97072V5.51645C3.59211 5.39276 3.54507 5.2704 3.45263 5.18717L2.51184 4.05362V3.88421H5.43322L7.69145 8.83651L9.67665 3.88421H12.4615V4.05395Z" />
         </svg>
 
-        <svg viewBox="0 0 17 16" >
+        <svg viewBox="0 0 17 16">
           <path d="M8.50004 0.0833282C7.46041 0.0833282 6.43096 0.288099 5.47046 0.685949C4.50997 1.0838 3.63724 1.66694 2.90211 2.40207C1.41745 3.88673 0.583374 5.90037 0.583374 8C0.583374 11.4992 2.85546 14.4679 5.99837 15.5208C6.39421 15.5842 6.52087 15.3387 6.52087 15.125V13.7871C4.32796 14.2621 3.86087 12.7262 3.86087 12.7262C3.49671 11.8079 2.98212 11.5625 2.98212 11.5625C2.26171 11.0717 3.03754 11.0875 3.03754 11.0875C3.82921 11.1429 4.24879 11.9029 4.24879 11.9029C4.93754 13.1062 6.10129 12.75 6.55254 12.56C6.62379 12.0454 6.82962 11.6971 7.05129 11.4992C5.29379 11.3012 3.44921 10.6204 3.44921 7.60416C3.44921 6.72541 3.75004 6.02083 4.26462 5.45875C4.18546 5.26083 3.90837 4.4375 4.34379 3.36875C4.34379 3.36875 5.00879 3.155 6.52087 4.17625C7.14629 4.00208 7.82712 3.915 8.50004 3.915C9.17296 3.915 9.85379 4.00208 10.4792 4.17625C11.9913 3.155 12.6563 3.36875 12.6563 3.36875C13.0917 4.4375 12.8146 5.26083 12.7355 5.45875C13.25 6.02083 13.5509 6.72541 13.5509 7.60416C13.5509 10.6283 11.6984 11.2933 9.93296 11.4912C10.218 11.7367 10.4792 12.2196 10.4792 12.9558V15.125C10.4792 15.3387 10.6059 15.5921 11.0096 15.5208C14.1525 14.46 16.4167 11.4992 16.4167 8C16.4167 6.96036 16.2119 5.93091 15.8141 4.97042C15.4162 4.00992 14.8331 3.1372 14.098 2.40207C13.3628 1.66694 12.4901 1.0838 11.5296 0.685949C10.5691 0.288099 9.53967 0.0833282 8.50004 0.0833282Z" />
         </svg>
-
       </div>
 
-      <ConnectButton
-        connectedText={address}
-        connectText={"Connect Wallet"}
-        className="px-12 md:px-15 py-5 md:py-12 text-12 md:text-15 bg-primary rounded-md cursor-pointer"
-      />
+      <div className="flex justify-between items-center gap-10 bg-[#4282a8] rounded-md">
+        {!!currentAccount && (
+          <div className="flex justify-between items-center gap-10  pl-10 rounded-md">
+            <span className="text-12 md:text-15 font-semibold cursor-pointer">
+              {props.balance}
+            </span>
+            <svg
+              style={{ width: 20, height: 30 }}
+              viewBox="0 0 185 269"
+              fill="none"
+            >
+              <path
+                fillRule="evenodd"
+                clipRule="evenodd"
+                d="M12.506 222.289C20.4894 236.463 32.0943 248.258 46.1319 256.466C60.1694 264.674 76.1348 269 92.3925 269C108.65 269 124.616 264.674 138.653 256.466C152.691 248.258 164.296 236.463 172.279 222.289C180.472 208.088 184.785 191.978 184.785 175.58C184.785 159.182 180.472 143.073 172.279 128.872L102.017 5.62721C101.055 3.91963 99.6572 2.49867 97.9659 1.50988C96.2747 0.521085 94.3512 0 92.3925 0C90.4339 0 88.5104 0.521085 86.8191 1.50988C85.1279 2.49867 83.7296 3.91963 82.7676 5.62721L12.506 128.872C4.31318 143.073 0 159.182 0 175.58C0 191.978 4.31318 208.088 12.506 222.289V222.289ZM72.5998 64.2605L87.5801 37.9825C88.0611 37.1287 88.7602 36.4183 89.6058 35.9239C90.4514 35.4295 91.4132 35.1689 92.3925 35.1689C93.3719 35.1689 94.3336 35.4295 95.1792 35.9239C96.0249 36.4183 96.724 37.1287 97.205 37.9825L154.836 139.073C160.01 148.036 163.217 157.999 164.245 168.299C165.273 178.598 164.098 188.999 160.798 198.81C160.081 195.466 159.095 192.185 157.85 189C149.889 168.655 131.89 152.954 104.341 142.334C85.401 135.058 73.3107 124.357 68.3981 110.524C62.0711 92.7025 68.6797 73.2632 72.5998 64.2605ZM47.0552 109.068L29.9489 139.073C23.5444 150.173 20.1727 162.765 20.1727 175.583C20.1727 188.402 23.5444 200.994 29.9489 212.094C35.1261 221.273 42.2588 229.199 50.8406 235.308C59.4225 241.418 69.2431 245.562 79.6051 247.446C89.9671 249.33 100.616 248.908 110.797 246.209C120.978 243.511 130.44 238.602 138.512 231.832C142.973 220.418 143.132 207.77 138.96 196.248C133.114 181.548 119.04 169.813 97.1304 161.361C72.3646 151.848 56.2763 136.995 49.317 117.229C48.3797 114.563 47.624 111.837 47.0552 109.068V109.068Z"
+                fill="currentColor"
+              />
+            </svg>
+          </div>
+        )}
+
+        <ConnectButton
+          connectedText={address}
+          connectText={"Connect Wallet"}
+          className="connect-btn px-12 md:px-15 py-5 md:py-12 text-12 md:text-15 rounded-md cursor-pointer"
+        />
+      </div>
     </div>
-  )
-}
+  );
+};
