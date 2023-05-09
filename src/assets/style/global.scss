@@ -47,3 +47,9 @@ input{
 
   font-size: 15px;
 }
+
+.x-leaderboard{
+  & > *{
+    color: black !important;
+  }
+}

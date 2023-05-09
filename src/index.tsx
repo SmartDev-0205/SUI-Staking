@@ -1,21 +1,25 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import { WalletKitProvider } from "@mysten/wallet-kit"
+import React from "react";
+import ReactDOM from "react-dom/client";
+import { WalletKitProvider } from "@mysten/wallet-kit";
 
-import './assets/style/index.scss'
-import './assets/style/global.scss'
-import { Router } from './router';
+import "./assets/style/index.scss";
+import "./assets/style/global.scss";
+import { Router } from "./router";
 // import configureStore from './store'
 // import { dataConst } from './store/constants/dataConst';
-import reportWebVitals from './reportWebVitals';
+import reportWebVitals from "./reportWebVitals";
+
+import StakingProvider from "./context";
 
 // const InitialData = { data: dataConst }
-const root = ReactDOM.createRoot(document.getElementById('root'));
+const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
   <React.StrictMode>
-    <WalletKitProvider>
-      <Router />
-    </WalletKitProvider>
+    <StakingProvider>
+      <WalletKitProvider>
+        <Router />
+      </WalletKitProvider>
+    </StakingProvider>
   </React.StrictMode>
 );
 

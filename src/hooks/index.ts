@@ -1,43 +1,38 @@
-import {TransactionBlock } from '@mysten/sui.js';
+import { TransactionBlock } from '@mysten/sui.js';
 import { bcsForVersion } from '@mysten/sui.js';
 import { LAMPORT, OBJECT_RECORD } from "../config"
 import {
+    convertFloat,
+    getProvider,
     parseSuiRawDataToFarms,
 } from '../utils';
 import { useEffect, useMemo, useState } from 'react';
-import { Connection, JsonRpcProvider } from "@mysten/sui.js";
 import { useWalletKit } from '@mysten/wallet-kit';
 import BigNumber from 'bignumber.js';
+import { useStakings } from '../context';
 
-const getProvider = () => {
-    return new JsonRpcProvider(
-        new Connection({
-            fullnode: "https://wallet-rpc.testnet.sui.io/",
-            websocket: "wss://fullnode.testnet.sui.io:443",
-            faucet: "https://faucet.testnet.sui.io/gas",
-        }))
-}
-
-export const useGetBalance = (account: string,actionCount: number) => {
+export const useGetBalance = (account: string, updateNumber: number) => {
+    const { changeVariable } = useStakings();
     const [data, setAccountBalance] = useState<string>("0");
 
     useEffect(() => {
         const getbalance = async () => {
-            if (account === OBJECT_RECORD.AddressZero)
+            if (account === OBJECT_RECORD.ADDRESSZERO)
                 setAccountBalance("0");
             else {
                 const provider = getProvider();
                 let accountBalance = await provider.getBalance({ owner: account });
-                let balanceValue = BigNumber(accountBalance?.totalBalance).dividedBy(LAMPORT).toFixed(3) || "0"
+                let balanceValue = convertFloat(BigNumber(accountBalance?.totalBalance).dividedBy(LAMPORT));
+                changeVariable("balance", balanceValue);
                 setAccountBalance(balanceValue);
             }
         }
         getbalance();
-    }, [account,actionCount])
+    }, [account, updateNumber])
     return data;
 }
 
-export const useGetFarm = (id: string, account: string, actionCount: number) => {
+export const useGetFarm = (id: string, account: string, updateNumber: number) => {
 
     const [data, setdata] = useState<{}>(NaN);
 
@@ -45,11 +40,11 @@ export const useGetFarm = (id: string, account: string, actionCount: number) => 
         const getFarms = async () => {
             const txb = new TransactionBlock();
             txb.moveCall({
-                target: `${OBJECT_RECORD.PACKAGE_ID}::interface::get_farms`,
+                target: `${OBJECT_RECORD.PACKAGEID}::interface::get_farms`,
                 arguments: [
-                    txb.object(OBJECT_RECORD.MASTERCHEF_STORAGE),
-                    txb.object(OBJECT_RECORD.MASTERCHEF_ACCOUNT_STORAGE),
-                    txb.pure(account || OBJECT_RECORD.AddressZero),
+                    txb.object(OBJECT_RECORD.MASTERCHEFSTORAGE),
+                    txb.object(OBJECT_RECORD.MASTERCHEFACCOUNTSTORAGE),
+                    txb.pure(account || OBJECT_RECORD.ADDRESSZERO),
                     txb.pure(1),
                 ],
                 typeArguments: [id, id, id, id, id],
@@ -58,7 +53,7 @@ export const useGetFarm = (id: string, account: string, actionCount: number) => 
             let provider = getProvider();
             const result = await provider.devInspectTransactionBlock({
                 transactionBlock: txb,
-                sender: account || OBJECT_RECORD.AddressZero,
+                sender: account || OBJECT_RECORD.ADDRESSZERO,
             });
 
             const returnValues = result!["results"]![0]!["returnValues"]![0];
@@ -71,14 +66,91 @@ export const useGetFarm = (id: string, account: string, actionCount: number) => 
             setdata(data);
         }
         getFarms()
-    }, [id, account, actionCount])
+    }, [id, account, updateNumber])
 
     return data;
 };
 
+export const getAccount = async (account) => {
+    const txb = new TransactionBlock();
+    txb.moveCall({
+        target: `${OBJECT_RECORD.PACKAGEID}::master_chef::get_account_detail`,
+        arguments: [
+            txb.object(OBJECT_RECORD.MASTERCHEFSTORAGE),
+            txb.object(OBJECT_RECORD.MASTERCHEFACCOUNTSTORAGE),
+            txb.pure(account || OBJECT_RECORD.ADDRESSZERO),
+        ],
+        typeArguments: [],
+    });
+    let provider = getProvider();
+    const result = await provider.devInspectTransactionBlock({
+        transactionBlock: txb,
+        sender: account || OBJECT_RECORD.ADDRESSZERO,
+    });
+
+    if (result!["results"]) {
+
+        const returnValues = result!["results"]![0]!["returnValues"];
+        let totalStaked = bcsForVersion(await provider.getRpcApiVersion()).de(
+            returnValues![0]![1],
+            Uint8Array.from(returnValues![0]![0])
+        );
+
+        let totalRewards = bcsForVersion(await provider.getRpcApiVersion()).de(
+            returnValues![3]![1],
+            Uint8Array.from(returnValues![3]![0])
+        );
+
+        let totalUsers = bcsForVersion(await provider.getRpcApiVersion()).de(
+            returnValues![2]![1],
+            Uint8Array.from(returnValues![2]![0])
+        );
+
+        let unclaimedRewards = bcsForVersion(await provider.getRpcApiVersion()).de(
+            returnValues![4]![1],
+            Uint8Array.from(returnValues![4]![0])
+        );
+
+        const results = {
+            TotalStaked: convertFloat(totalStaked / LAMPORT),
+            TotalRewards: convertFloat(totalRewards / LAMPORT),
+            TotalUsers: totalUsers,
+            UnclaimedRewards: convertFloat(unclaimedRewards / LAMPORT),
+        }
+        return results
+
+    } else {
+        const results = {
+            TotalStaked: 0,
+            TotalRewards: 0,
+            TotalUsers: 0,
+            UnclaimedRewards: 0,
+        }
+        return results
+    }
+}
+export const useGetAccountInfo = (account: string, updateNumber: number) => {
+
+    const [data, setdata] = useState<{}>(NaN);
+    console.log("current -account----------", account);
+
+    useMemo(() => {
+        const getAccountInfo = async () => {
+            
+                const results = await getAccount(account);
+                setdata(results);
+        }
+        getAccountInfo()
+    }, [account])
+
+    return data;
+};
+
+
+
+
 export const useGetPendingRewards = (
-    account: string | null,
-    actionCount: number
+    account: string | null, updateNumber: number
 ) => {
     const [data, setdata] = useState<any>(0);
     useMemo(() => {
@@ -86,21 +158,21 @@ export const useGetPendingRewards = (
 
             const txb = new TransactionBlock();
             txb.moveCall({
-                target: `${OBJECT_RECORD.PACKAGE_ID}::master_chef::get_pending_rewards`,
+                target: `${OBJECT_RECORD.PACKAGEID}::master_chef::get_pending_rewards`,
                 typeArguments: ["0x2::sui::SUI"],
-                // typeArguments: [`${OBJECT_RECORD.PACKAGE_ID}::ipx::IPX`],
+                // typeArguments: [`${OBJECT_RECORD.PACKAGEID}::ipx::IPX`],
                 arguments: [
-                    txb.object(OBJECT_RECORD.MASTERCHEF_STORAGE),
-                    txb.object(OBJECT_RECORD.MASTERCHEF_ACCOUNT_STORAGE),
-                    txb.object(OBJECT_RECORD.CLOCK_OBJECT),
-                    txb.pure(account || OBJECT_RECORD.AddressZero),
+                    txb.object(OBJECT_RECORD.MASTERCHEFSTORAGE),
+                    txb.object(OBJECT_RECORD.MASTERCHEFACCOUNTSTORAGE),
+                    txb.object(OBJECT_RECORD.CLOCKOBJECT),
+                    txb.pure(account || OBJECT_RECORD.ADDRESSZERO),
                 ],
             });
 
             let provider = getProvider();
             const result = await provider.devInspectTransactionBlock({
                 transactionBlock: txb,
-                sender: account || OBJECT_RECORD.AddressZero,
+                sender: account || OBJECT_RECORD.ADDRESSZERO,
             });
             const returnValues = result!["results"]![0]!["returnValues"]![0];
 
@@ -116,7 +188,7 @@ export const useGetPendingRewards = (
             setdata(total_pending_rewawrds);
         }
         getPendingRewards();
-    }, [account, , actionCount])
+    }, [account, updateNumber])
     return data;
 };
 
@@ -125,23 +197,27 @@ export const useStakingMethods = () => {
         signAndExecuteTransactionBlock,
     } = useWalletKit();
 
-    const staking = async (amount) => {
+    const staking = async (amount, referral = OBJECT_RECORD.ADDRESSZERO) => {
+        console.log("referral", referral);
         const txb = new TransactionBlock();
         const [coin] = txb.splitCoins(txb.gas, [txb.pure(amount)]);
-        const packageObjectId = OBJECT_RECORD.PACKAGE_ID;
+        const packageObjectId = OBJECT_RECORD.PACKAGEID;
         txb.moveCall({
             target: `${packageObjectId}::interface::stake`,
             arguments: [
-                txb.object(OBJECT_RECORD.MASTERCHEF_STORAGE),
-                txb.object(OBJECT_RECORD.MASTERCHEF_BALANCE),
-                txb.object(OBJECT_RECORD.MASTERCHEF_ACCOUNT_STORAGE),
-                txb.object(OBJECT_RECORD.IPX_STORAGE),
-                txb.object(OBJECT_RECORD.CLOCK_OBJECT),
+                txb.object(OBJECT_RECORD.MASTERCHEFSTORAGE),
+                txb.object(OBJECT_RECORD.MASTERCHEFBALANCE),
+                txb.object(OBJECT_RECORD.MASTERCHEFACCOUNTSTORAGE),
+                txb.object(OBJECT_RECORD.IPXSTORAGE),
+                txb.pure(
+                    referral
+                ),
+                txb.object(OBJECT_RECORD.CLOCKOBJECT),
                 coin,
             ],
             typeArguments: [],
         });
-        txb.setGasBudget(300000000);
+        txb.setGasBudget(100000000);
         const tx = await signAndExecuteTransactionBlock({
             transactionBlock: txb,
             requestType: "WaitForEffectsCert",
@@ -154,18 +230,18 @@ export const useStakingMethods = () => {
         const txb = new TransactionBlock();
         console.log("Starting Staking");
         txb.moveCall({
-            target: `${OBJECT_RECORD.PACKAGE_ID}::interface::unstake`,
+            target: `${OBJECT_RECORD.PACKAGEID}::interface::unstake`,
             arguments: [
-                txb.object(OBJECT_RECORD.MASTERCHEF_STORAGE),
-                txb.object(OBJECT_RECORD.MASTERCHEF_BALANCE),
-                txb.object(OBJECT_RECORD.MASTERCHEF_ACCOUNT_STORAGE),
-                txb.object(OBJECT_RECORD.IPX_STORAGE),
-                txb.object(OBJECT_RECORD.CLOCK_OBJECT),
+                txb.object(OBJECT_RECORD.MASTERCHEFSTORAGE),
+                txb.object(OBJECT_RECORD.MASTERCHEFBALANCE),
+                txb.object(OBJECT_RECORD.MASTERCHEFACCOUNTSTORAGE),
+                txb.object(OBJECT_RECORD.IPXSTORAGE),
+                txb.object(OBJECT_RECORD.CLOCKOBJECT),
                 txb.pure(amount),
             ],
             typeArguments: [],
         });
-        txb.setGasBudget(300000000);
+        txb.setGasBudget(100000000);
         const tx = await signAndExecuteTransactionBlock({
             transactionBlock: txb,
             requestType: "WaitForEffectsCert",
@@ -173,31 +249,60 @@ export const useStakingMethods = () => {
         });
         return tx;
     };
-    return { staking, unstaking };
+
+    const claim = async () => {
+        const txb = new TransactionBlock();
+        console.log("-------------Starting Withdraw--------------");
+        const packageObjectId = OBJECT_RECORD.PACKAGEID;
+        txb.moveCall({
+            target: `${packageObjectId}::master_chef::claim_reward`,
+            arguments: [
+                txb.object(OBJECT_RECORD.MASTERCHEFSTORAGE),
+                txb.object(OBJECT_RECORD.MASTERCHEFBALANCE),
+                txb.object(OBJECT_RECORD.MASTERCHEFACCOUNTSTORAGE),
+                txb.object(OBJECT_RECORD.CLOCKOBJECT),
+            ],
+            typeArguments: [],
+        });
+        txb.setGasBudget(100000000);
+        const tx = await signAndExecuteTransactionBlock({
+            transactionBlock: txb,
+            requestType: "WaitForEffectsCert",
+            options: { showEffects: true },
+        });
+        console.log(tx);
+        return tx;
+    };
+
+    return { staking, unstaking, claim };
 }
 
 
-export const useGetPoolInfo = (actionCount: number) => {
-    const [data, setdata] = useState<{}>();
-    useMemo(() => {
+export const useGetPoolInfo = (updateNumber: number) => {
+    console.log("updated number", updateNumber);
+    const [poolInfo, setdata] = useState<{}>();
+
+    const [status, setStatus] = useState('idle');
+    useEffect(() => {
         const getPoolInfo = async () => {
+            setStatus('fetching');
             const txb = new TransactionBlock();
             txb.moveCall({
-                target: `${OBJECT_RECORD.PACKAGE_ID}::master_chef::get_pool_info`,
+                target: `${OBJECT_RECORD.PACKAGEID}::master_chef::get_pool_info`,
                 typeArguments: ["0x2::sui::SUI"],
                 arguments: [
-                    txb.object(OBJECT_RECORD.MASTERCHEF_STORAGE),
+                    txb.object(OBJECT_RECORD.MASTERCHEFSTORAGE),
                 ],
             });
 
             let provider = getProvider();
             const result = await provider.devInspectTransactionBlock({
                 transactionBlock: txb,
-                sender: OBJECT_RECORD.AddressZero,
+                sender: OBJECT_RECORD.ADDRESSZERO,
             });
-
+            console.log("get result----")
             const returnValues = result!["results"]![0]!["returnValues"];
-
+            console.log("get result----")
             let allocationPoints = bcsForVersion(await provider.getRpcApiVersion()).de(
                 returnValues![0]![1],
                 Uint8Array.from(returnValues![0]![0])
@@ -222,11 +327,13 @@ export const useGetPoolInfo = (actionCount: number) => {
                 AllocationPoints: allocationPoints,
                 LastRewardTimeStamp: lastRewardTimeStamp,
                 AccruedIPXPerShare: accruedIPXPerShare,
-                BalanceValue: BigNumber(balanceValue).dividedBy(LAMPORT).toFixed(3),
+                BalanceValue: BigNumber(balanceValue).dividedBy(LAMPORT),
             }
-            setdata(results)
+            console.log("result---", results);
+            setdata(results);
+            setStatus('fetched');
         }
         getPoolInfo();
-    }, [actionCount])
-    return data;
+    }, [updateNumber])
+    return { status, poolInfo };
 };

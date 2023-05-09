@@ -1,9 +1,30 @@
 import React from "react";
 import { useEffect, useState } from "react";
 import { ConnectButton, useWalletKit } from "@mysten/wallet-kit";
+import { Link } from "react-router-dom";
+import { useStakings } from "../../context";
+import { useGetBalance } from "../../hooks";
+import { OBJECT_RECORD } from "../../config";
+
+import Box from "@mui/material/Box";
+import Avatar from "@mui/material/Avatar";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
+
 export const Header = (props) => {
   const { currentAccount } = useWalletKit();
   const [address, setAddress] = useState("");
+
+  const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
+  const open = Boolean(anchorEl);
+  const handleClick = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
+
+  const { state } = useStakings();
   useEffect(() => {
     if (currentAccount?.address) {
       let tempAddr = currentAccount?.address;
@@ -11,9 +32,16 @@ export const Header = (props) => {
     }
   }, [currentAccount]);
 
+  useGetBalance(currentAccount?.address || OBJECT_RECORD.ADDRESSZERO, 0);
   return (
     <div className="fixed top-0 left-0 w-full min-h-60 md:min-h-80 lg:h-90 px-[8vw] flex flex-row-reverse mm:flex-row gap-50 items-center justify-between mm:justify-end bg-bg z-10">
-      <div className="w-30 h-30 cursor-pointer block mm:hidden">
+      <div
+        className="w-30 h-30 cursor-pointer block mm:hidden"
+        onClick={handleClick}
+        aria-controls={open ? "account-menu" : undefined}
+        aria-haspopup="true"
+        aria-expanded={open ? "true" : undefined}
+      >
         <svg viewBox="0 0 48 48">
           <path d="M41,14H7a2,2,0,0,1,0-4H41A2,2,0,0,1,41,14Z" fill="#6f7380" />
           <path d="M41,26H7a2,2,0,0,1,0-4H41A2,2,0,0,1,41,26Z" fill="#6f7380" />
@@ -21,18 +49,43 @@ export const Header = (props) => {
         </svg>
       </div>
 
+      <Menu
+        anchorEl={anchorEl}
+        id="account-menu"
+        open={open}
+        onClose={handleClose}
+        onClick={handleClose}
+        PaperProps={{
+          elevation: 0,
+          style: {
+            backgroundColor: "#232358", // set background color
+            color:"white",
+            width:"200px",
+            display:"flex",
+            justifyContent:"center"
+          },
+        }}
+        transformOrigin={{ horizontal: "right", vertical: "top" }}
+        anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
+      >
+        <MenuItem onClick={handleClose}><Link to="/">Stake</Link></MenuItem>
+        <MenuItem onClick={handleClose}><Link to="/airdrop">Airdrop</Link></MenuItem>
+        <MenuItem onClick={handleClose}><Link to="/referral">Referral</Link></MenuItem>
+        <MenuItem onClick={handleClose}><Link to="/doc">Doc</Link></MenuItem>
+      </Menu>
+
       <div className="hidden mm:flex flex-row gap-10 md:gap-20 lg:gap-30">
         <span className="text-12 md:text-15 font-semibold cursor-pointer">
-          Airdrop
+          <Link to="/">Stake</Link>
         </span>
         <span className="text-12 md:text-15 font-semibold cursor-pointer">
-          Stake
+          <Link to="/airdrop">Airdrop</Link>
         </span>
         <span className="text-12 md:text-15 font-semibold cursor-pointer">
-          My Account
+          <Link to="/referral">Referral</Link>
         </span>
         <span className="text-12 md:text-15 font-semibold cursor-pointer">
-          Docs
+          <Link to="/doc">Doc</Link>
         </span>
       </div>
 
@@ -58,7 +111,7 @@ export const Header = (props) => {
         {!!currentAccount && (
           <div className="flex justify-between items-center gap-10  pl-10 rounded-md">
             <span className="text-12 md:text-15 font-semibold cursor-pointer">
-              {props.balance}
+              {state["balance"]}
             </span>
             <svg
               style={{ width: 20, height: 30 }}

@@ -1,11 +1,9 @@
-import React from "react";
+import React, { useReducer, useEffect, useState } from "react";
 import { toast } from "react-toastify";
-import { useEffect, useState } from "react";
 import { ConnectButton, useWalletKit } from "@mysten/wallet-kit";
-
-import { Layout } from "../components/layouts/layout";
 import { OBJECT_RECORD, LAMPORT } from "../config";
 import {
+  getAccount,
   useGetBalance,
   useGetFarm,
   useGetPendingRewards,
@@ -13,64 +11,70 @@ import {
   useStakingMethods,
 } from "../hooks";
 import BigNumber from "bignumber.js";
-import { convertTimestampToDateFormat } from "../utils";
-
-interface POOLINFO {
-  AllocationPoints?: string;
-  LastRewardTimeStamp?: string;
-  AccruedIPXPerShare?: string;
-  BalanceValue?: string;
-}
+import { convertFloat, convertTimestampToDateFormat } from "../utils";
+import { useStakings } from "../context";
+import { useLocation } from "react-router-dom";
 
 export const HomePage = () => {
   const { currentAccount } = useWalletKit();
+  const { state, changeVariable, writeAccount } = useStakings();
+
+  const [updateNumber, forceUpdate] = useReducer((x) => x + 1, 0);
+
+  const update = () => {
+    setTimeout(() => {
+      console.log("Starting update");
+      forceUpdate();
+    }, 5000);
+  };
+
+  const parameter = useLocation().search;
+  const referral = new URLSearchParams(parameter).get("referral");
+
   const { staking, unstaking } = useStakingMethods();
   const [unStake, setUnStake] = useState<any>(false);
-  const [actionCount, setActionCount] = useState<number>(0);
-
-  const initPool = {
-    AllocationPoints: "",
-    LastRewardTimeStamp: "",
-    AccruedIPXPerShare: "",
-    BalanceValue: "",
-  };
-  const [currentPoolInfo, setPoolInfo] = useState<POOLINFO>(initPool);
 
   // ---------- Get Farming details -----------
   const farmData = useGetFarm(
     OBJECT_RECORD.COIN_SUI,
-    currentAccount?.address || OBJECT_RECORD.AddressZero,
-    actionCount
+    currentAccount?.address || OBJECT_RECORD.ADDRESSZERO,
+    updateNumber
   );
-  // const accountBalance = farmData[0]?.accountBalance?.toString() || "0";
-  const totalStakedAmount =
-    farmData[0]?.accountBalance?.dividedBy(LAMPORT).toFixed(3) || "0";
-  // const allocationPoints = farmData[0]?.allocationPoints?.dividedBy(LAMPORT).toFixed(3) || "0";
-
-  // -------------------------------------------
-
+  const totalStakedAmount = convertFloat(
+    farmData[0]?.accountBalance?.dividedBy(LAMPORT)
+  );
   // ---------- Get Pending  details -----------
   const pendingRewards = useGetPendingRewards(
-    currentAccount?.address || OBJECT_RECORD.AddressZero,
-    actionCount
+    currentAccount?.address || OBJECT_RECORD.ADDRESSZERO,
+    updateNumber
   );
-  const pendingIPX = BigNumber(pendingRewards).dividedBy(LAMPORT).toFixed(3);
+  const pendingIPX = convertFloat(BigNumber(pendingRewards).dividedBy(LAMPORT));
   // -------------------------------------------
 
   // ---------- Get Pending  details -----------
   const currentBalance = useGetBalance(
-    currentAccount?.address || OBJECT_RECORD.AddressZero,
-    actionCount
+    currentAccount?.address || OBJECT_RECORD.ADDRESSZERO,
+    updateNumber
   );
   // -------------------------------------------
 
   // ---------- Get POOL INFO -----------
-  const poolInfo = useGetPoolInfo(actionCount);
+  const { status, poolInfo } = useGetPoolInfo(updateNumber);
   useEffect(() => {
     if (poolInfo) {
-      setPoolInfo(poolInfo);
+      console.log("current status", status, poolInfo);
+      changeVariable(
+        "totalStaked",
+        convertFloat(poolInfo["BalanceValue"]) + " SUI"
+      );
+      changeVariable("allocationProfit", poolInfo["AllocationPoints"] + " %");
+      let lastRewwardTime = convertTimestampToDateFormat(
+        poolInfo["LastRewardTimeStamp"] || 0
+      );
+      changeVariable("lastRewardTime", lastRewwardTime);
+      changeVariable("accruedToken", poolInfo["AccruedIPXPerShare"] + " SIP");
     }
-  }, [poolInfo]);
+  }, [poolInfo, status]);
   // ------------------------------------
 
   const [address, setAddress] = useState<any>("");
@@ -88,14 +92,14 @@ export const HomePage = () => {
     } else {
       setAmount(
         currentAccount?.address && parseFloat(currentBalance) > 0.3
-          ? (parseFloat(currentBalance) - 0.3).toFixed(3)
+          ? convertFloat(parseFloat(currentBalance) - 0.1)
           : 0
       );
     }
   };
 
   const handleStake = async (amount) => {
-    let tx = await staking(amount);
+    let tx = await staking(amount, referral || OBJECT_RECORD.ADDRESSZERO);
     let status: string = tx!["effects"]!["status"]!["status"] || "failure";
     let error: string =
       tx!["effects"]!["status"]!["error"] ||
@@ -109,9 +113,12 @@ export const HomePage = () => {
       toast("Staking success", {
         type: "success",
       });
-      const newCount = actionCount + 1;
-      setActionCount(newCount);
+      setTimeout(() => {
+        updateAccount(currentAccount.address);
+        if (referral) updateAccount(referral);
+      }, 2000);
     }
+    update();
   };
 
   const handleUnstake = async (amount) => {
@@ -130,13 +137,26 @@ export const HomePage = () => {
       toast("UnStaking success", {
         type: "success",
       });
-      const newCount = actionCount + 1;
-      setActionCount(newCount);
+      setTimeout(() => {
+        updateAccount(currentAccount.address);
+        if (referral) updateAccount(referral);
+      }, 2000);
     }
+    update();
+  };
+
+  const updateAccount = async (account: string) => {
+    let results = await getAccount(account);
+    writeAccount(
+      account,
+      results["TotalStaked"],
+      results["TotalRewards"],
+      results["TotalUsers"]
+    );
   };
 
   return (
-    <Layout balance={currentBalance}>
+    <>
       <div className="flex-1 flex flex-col gap-50 items-center">
         <div className="flex flex-row gap-20 flex-wrap justify-center">
           <div className="w-250 flex flex-col gap-5 mm:gap-10 lg:gap-15 bg-foreground px-10 mm:px-15 lg:px-20 py-10 mm:py-15 lg:py-20 rounded-md">
@@ -144,11 +164,8 @@ export const HomePage = () => {
               Total SUI Staked
             </span>
             <span className="text-15 mm:text-20 font-bold">
-              {currentPoolInfo["BalanceValue"]
-                ? currentPoolInfo["BalanceValue"] + " SUI"
-                : "Loading ..."}
+              {state["totalStaked"]}
             </span>
-            {/* <span className="text-12 mm:text-15 font-semibold">= $ 13.88M</span> */}
           </div>
 
           <div className="w-250 flex flex-col gap-5 mm:gap-10 lg:gap-15 bg-foreground px-10 mm:px-15 lg:px-20 py-10 mm:py-15 lg:py-20 rounded-md">
@@ -156,13 +173,8 @@ export const HomePage = () => {
               Last Reward Time
             </span>
             <span className="text-15 mm:text-20 font-bold">
-              {currentPoolInfo["LastRewardTimeStamp"]
-                ? convertTimestampToDateFormat(
-                    currentPoolInfo["LastRewardTimeStamp"]
-                  )
-                : "Loading..."}
+              {state["lastRewardTime"]}
             </span>
-            {/* <span className="text-12 mm:text-15 font-semibold">= $ 2.88</span> */}
           </div>
 
           <div className="w-250 flex flex-col gap-5 mm:gap-10 lg:gap-15 bg-foreground px-10 mm:px-15 lg:px-20 py-10 mm:py-15 lg:py-20 rounded-md">
@@ -170,9 +182,8 @@ export const HomePage = () => {
               Accrued token Per Share
             </span>
             <span className="text-15 mm:text-20 font-bold">
-              {currentPoolInfo["AccruedIPXPerShare"]! || "Loading ..."}
+              {state["accruedToken"]}
             </span>
-            {/* <span className="text-12 mm:text-15 font-semibold">= $ 2.88</span> */}
           </div>
 
           <div className="w-250 flex flex-col gap-5 mm:gap-10 lg:gap-15 bg-foreground px-10 mm:px-15 lg:px-20 py-10 mm:py-15 lg:py-20 rounded-md">
@@ -180,14 +191,11 @@ export const HomePage = () => {
               Allocation Points
             </span>
             <span className="text-15 mm:text-20 font-bold">
-              {currentPoolInfo["AllocationPoints"]
-                ? currentPoolInfo["AllocationPoints"] + " %"
-                : "Loading ..."}
+              {state["allocationProfit"]}
             </span>
             <span className="text-12 mm:text-15 font-semibold"></span>
           </div>
         </div>
-
         <div className="flex flex-col gap-30 items-center">
           <div className="flex flex-col items-center text-center">
             <span className="text-30 md:text-40 lg:text-50 font-bold">
@@ -327,7 +335,7 @@ export const HomePage = () => {
                             <span className="text-10 md:text-12">
                               {pendingIPX}
                             </span>
-                            IPX
+                            SIP
                           </div>
                         </li>
                       </ul>
@@ -362,6 +370,6 @@ export const HomePage = () => {
           </div>
         </div>
       </div>
-    </Layout>
+    </>
   );
 };
